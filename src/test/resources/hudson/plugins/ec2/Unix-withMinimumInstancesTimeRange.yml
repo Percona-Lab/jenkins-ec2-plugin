@@ -1,0 +1,19 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "timed"
+        useInstanceProfileForCredentials: true
+        sshKeysCredentialsId: "random credentials id"
+        templates:
+          - description:
+            ami: "ami-123456"
+            labelString: "linux ubuntu"
+            type: "t2.micro"
+            remoteFS: "/home/ec2-user"
+            mode: "NORMAL"
+            minimumNumberOfInstancesTimeRangeConfig:
+              minimumNoInstancesActiveTimeRangeFrom: "01:00"
+              minimumNoInstancesActiveTimeRangeTo: "1:00 PM"
+              monday: false
+              tuesday: true

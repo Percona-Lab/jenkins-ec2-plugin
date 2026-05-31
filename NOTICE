@@ -1,0 +1,13 @@
+EC2 Plugin (Percona fork)
+Copyright 2026 Percona LLC
+
+This product is a derivative work of the Jenkins EC2 Plugin
+(https://github.com/jenkinsci/ec2-plugin), licensed under the MIT License.
+The original MIT copyright and permission notice are retained in LICENSE.txt
+and in the per-file source headers.
+
+Percona LLC changes (version 5.24.percona.3):
+  - ComputerRetentionWork NPE/timer-death guards in EC2Computer and a
+    RuntimeException safety net in EC2RetentionStrategy (the "percona.2" work).
+  - Explicit EKS IRSA support: WebIdentityTokenFileCredentialsProvider plus an
+    STS dependency and a guarded resolveCredentials path (AWS SDK v2).

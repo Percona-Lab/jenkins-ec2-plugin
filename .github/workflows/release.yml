@@ -1,0 +1,48 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*.percona.*'
+
+permissions:
+  contents: write   # create the GitHub Release + upload assets
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Derive version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        # tag v5.24.percona.3 -> changelist 5.24.percona.3 (no leading v)
+
+      - name: Build HPI
+        run: mvn -B -DskipTests package -Dchangelist=${{ steps.ver.outputs.version }}
+
+      - name: Stage + checksum artifact
+        id: asset
+        run: |
+          set -euo pipefail
+          src="target/ec2.hpi"
+          out="ec2-${{ steps.ver.outputs.version }}.hpi"
+          cp "$src" "$out"
+          sha256sum "$out" > "$out.sha256"
+          echo "hpi=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.ver.outputs.version }}
+          files: |
+            ${{ steps.asset.outputs.hpi }}
+            ${{ steps.asset.outputs.hpi }}.sha256

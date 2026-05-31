@@ -1,0 +1,14 @@
+---
+jenkins:
+  clouds:
+    - amazonEC2:
+        name: "staging"
+        useInstanceProfileForCredentials: true
+        privateKey: "${PRIVATE_KEY}"
+        templates:
+          - description:
+            ami: "ami-5678"
+            labelString: "linux clear"
+            type: "t3.micro"
+            remoteFS: "/mnt/jenkins"
+            mode: "NORMAL"

@@ -1,0 +1,263 @@
+<!--
+The MIT License
+
+Copyright (c) 2011, CloudBees, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+-->
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:ec="/lib/ec2">
+  <ec:blockWrapper>
+
+  <f:entry title="${%Description}" field="description">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI ID}" field="ami">
+    <f:textbox />
+  </f:entry>
+
+  <!-- FIXME: Ideally this would include owners and filters, but
+       validateButton only marshals simple types and can't handle the
+       filters repeatableProperty.
+  -->
+  <f:validateButton title="${%Check AMI}" progress="${%Checking...}" method="validateAmi" with="useInstanceProfileForCredentials,credentialsId,region,altEC2Endpoint,ami,roleArn,roleSessionName" />
+
+  <f:entry title="${%AMI Owners}" field="amiOwners">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Users}" field="amiUsers">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%AMI Filters}" help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/amiFilters">
+    <f:repeatableProperty field="amiFilters">
+      <f:block>
+        <div align="right">
+          <f:repeatableDeleteButton />
+        </div>
+      </f:block>
+    </f:repeatableProperty>
+  </f:entry>
+
+  <f:entry title="${%Instance Type}" field="type">
+    <f:select />
+  </f:entry>
+
+  <f:entry title="${%EBS Optimized}" field="ebsOptimized">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%Monitoring}" field="monitoring">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%T2 Unlimited}" field="t2Unlimited">
+    <f:checkbox />
+  </f:entry>
+
+  <f:entry title="${%Availability Zone}" field="zone">
+    <!-- this is preferred but there is a problem with making it work FRU 22 Feb 12
+         See: https://groups.google.com/group/jenkinsci-dev/t/af37fa7fe2769b0c -->
+    <!-- <f:select/>-->
+    <f:textbox/>
+  </f:entry>
+
+  <f:optionalProperty title="${%Spot configuration}" field="spotConfig"/>
+
+  <f:entry title="${%Security group names}" field="securityGroups">
+    <f:textbox/>
+  </f:entry>
+
+  <f:entry title="${%Remote FS root}" field="remoteFS">
+    <f:textbox />
+  </f:entry>
+
+  <f:entry title="${%Remote user}" field="remoteAdmin">
+    <f:textbox />
+  </f:entry>
+
+  <f:dropdownDescriptorSelector title="${%AMI Type}" field="amiType" descriptors="${descriptor.getAMITypeDescriptors()}" />
+
+  <f:entry title="${%Labels}" field="labelString">
+    <f:textbox />
+  </f:entry>
+
+  <f:slave-mode name="mode" node="${instance}" />
+
+  <f:entry title="${%Idle termination time}" field="idleTerminationMinutes">
+    <f:textbox default="30" />
+  </f:entry>
+
+    <f:entry title="${%Terminate idle agents during shutdown}" field="terminateIdleDuringShutdown">
+      <f:checkbox />
+    </f:entry>
+
+  <f:entry title="${%Init script}" field="initScript">
+    <f:textarea />
+  </f:entry>
+
+  <f:advanced>
+
+    <f:entry title="${%Override temporary dir location}" field="tmpDir">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%User Data}" field="userData">
+      <f:textarea />
+    </f:entry>
+
+    <f:entry title="${%Number of Executors}" field="numExecutors">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Java Path}" field="javaPath">
+      <f:textbox/>
+    </f:entry>
+
+    <f:entry title="${%JVM Options}" field="jvmopts">
+      <f:textbox/>
+    </f:entry>
+
+    <f:entry title="${%Stop/Disconnect on Idle Timeout}" field="stopOnTerminate">
+      <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Subnet IDs for VPC}" field="subnetId">
+       <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Tags}" description="${%EC2 Tag/Value Pairs}">
+       <f:repeatable field="tags">
+          <st:include page="config.jelly" class="${descriptor.clazz}" />
+       </f:repeatable>
+    </f:entry>
+
+    <f:entry title="${%Minimum number of instances}" field="minimumNumberOfInstances">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Minimum number of spare instances}" field="minimumNumberOfSpareInstances">
+      <f:textbox />
+    </f:entry>
+
+    <f:optionalBlock name="minimumNumberOfInstancesTimeRangeConfig"
+                     title="${%Only apply minimum number of instances during specific time range}" checked="${instance.minimumNumberOfInstancesTimeRangeConfig != null}"
+        help="/descriptor/hudson.plugins.ec2.SlaveTemplate/help/minimumNumberOfInstancesTimeRangeConfig" >
+      <f:entry title="${%From/to}" description="${%''13:00'' or ''1:00 PM'' format supported}">
+        From: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeFrom" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeFrom}" />
+        To: <f:textbox style="width: 25%;" field="minimumNoInstancesActiveTimeRangeTo" value="${instance.minimumNumberOfInstancesTimeRangeConfig.minimumNoInstancesActiveTimeRangeTo}" />
+      </f:entry>
+      <f:entry title="${%On days}">
+          <f:checkbox field="monday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.monday}" title="${%Monday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="tuesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.tuesday}" title="${%Tuesday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="wednesday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.wednesday}" title="${%Wednesday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="thursday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.thursday}" title="${%Thursday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="friday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.friday}" title="${%Friday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="saturday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.saturday}" title="${%Saturday}"/><st:nbsp/><st:nbsp/>
+          <f:checkbox field="sunday" checked="${instance.minimumNumberOfInstancesTimeRangeConfig.sunday}" title="${%Sunday}"/><st:nbsp/><st:nbsp/>
+      </f:entry>
+    </f:optionalBlock>
+    <f:entry />
+
+    <f:entry title="${%Instance Cap}" field="instanceCapStr">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%IAM Instance Profile}" field="iamInstanceProfile">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Delete root device on instance termination}" field="deleteRootOnTermination">
+      <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Use ephemeral devices}" field="useEphemeralDevices">
+      <f:checkbox />
+    </f:entry>
+
+    <f:entry title="${%Encrypt EBS root volume}" field="ebsEncryptRootVolume">
+      <f:select default="${descriptor.getDefaultEbsEncryptRootVolume()}"/>
+    </f:entry>
+
+    <f:entry title="${%Block device mapping}" field="customDeviceMapping">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Launch Timeout in seconds}" field="launchTimeoutStr">
+      <f:textbox />
+    </f:entry>
+
+    <f:entry title="${%Associate IP Strategy}" field="associateIPStrategy">
+      <f:select default="${descriptor.getDefaultAssociateIPStrategy()}"/>
+    </f:entry>
+
+    <f:entry title="${%Tenancy}" field="tenancy">
+        <f:enum>${it.name()}</f:enum>
+    </f:entry>
+
+    <f:entry title="${%Connection Strategy}" field="connectionStrategy">
+      <f:select default="${descriptor.getDefaultConnectionStrategy()}"/>
+    </f:entry>
+
+    <f:entry title="${%Connect by SSH Process}" field="connectBySSHProcess">
+      <f:checkbox />
+    </f:entry>
+
+      <f:entry title="${%Host Key Verification Strategy}" field="hostKeyVerificationStrategy">
+          <f:select default="${descriptor.defaultHostKeyVerificationStrategy}"/>
+      </f:entry>
+
+    <f:entry title="${%Maximum Total Uses}" field="maxTotalUses">
+      <f:textbox default="-1"/>
+    </f:entry>
+
+    <f:entry title="${%Avoid Using Orphaned Nodes}" field="avoidUsingOrphanedNodes">
+      <f:checkbox/>
+    </f:entry>
+
+    <f:descriptorList title="${%Node Properties}" field="nodeProperties" descriptors="${descriptor.nodePropertyDescriptors}" />
+
+    <f:optionalBlock title="${%Instance Metadata Supported}" field="metadataSupported" inline="true" checked="${instance.metadataSupported == null || instance.metadataSupported}">
+      <f:entry title="${%Enable Metadata HTTP Endpoint}" field="metadataEndpointEnabled" >
+        <f:checkbox default="true"/>
+      </f:entry>
+      <f:entry title="${%Metadata Require HTTP Tokens}" field="metadataTokensRequired">
+        <f:checkbox default="false"/>
+      </f:entry>
+      <f:entry title="${%Metadata Put Response Hop Limit}" field="metadataHopsLimit">
+        <f:number default="1" max="64" min="1" />
+      </f:entry>
+    </f:optionalBlock>
+
+    <f:entry title="${%Enclave Enabled}" field="enclaveEnabled">
+      <f:checkbox default="false"/>
+    </f:entry>
+
+  </f:advanced>
+
+  <f:entry title="">
+    <div align="right">
+      <f:repeatableDeleteButton />
+    </div>
+  </f:entry>
+
+</ec:blockWrapper>
+</j:jelly>
