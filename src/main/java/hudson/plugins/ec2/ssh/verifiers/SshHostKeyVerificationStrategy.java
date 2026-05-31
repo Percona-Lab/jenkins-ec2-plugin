@@ -38,9 +38,9 @@ import hudson.plugins.ec2.InstanceState;
 import java.security.PublicKey;
 import java.util.Base64;
 import java.util.logging.Level;
-import software.amazon.awssdk.core.exception.SdkException;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * A method for verifying the host key provided by the remote host during the
@@ -108,7 +108,8 @@ public abstract class SshHostKeyVerificationStrategy implements Describable<SshH
                                 + " is not running, waiting to validate the key against the console");
             }
         } catch (InterruptedException | SdkException e) {
-            logger.log(Level.FINE, "Could not get state for " + computer.getName() + " during host key verification", e);
+            logger.log(
+                    Level.FINE, "Could not get state for " + computer.getName() + " during host key verification", e);
             return null;
         }
 

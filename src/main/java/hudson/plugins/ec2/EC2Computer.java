@@ -59,6 +59,16 @@ public class EC2Computer extends SlaveComputer {
      */
     private volatile Instance ec2InstanceDescription;
 
+    /**
+     * Timestamp when {@link #ec2InstanceDescription} was last fetched.
+     * Used for TTL cache to avoid repeated EC2 API calls during SSH verification retries.
+     */
+    private volatile long instanceCacheTimestamp;
+
+    /** TTL in ms for instance/state cache. Configurable via system property. */
+    private static final long INSTANCE_CACHE_TTL_MS =
+            Long.getLong(EC2Computer.class.getName() + ".instanceCacheTTLMs", 30_000);
+
     private volatile Boolean isNitro;
 
     public EC2Computer(EC2AbstractSlave slave) {
@@ -174,18 +184,21 @@ public class EC2Computer extends SlaveComputer {
      * Obtains the instance state description in EC2.
      *
      * <p>
-     * This method returns a cached state, so it's not suitable to check {@link Instance#state()} from the returned
-     * instance (but all the other fields are valid as it won't change.)
+     * This method returns a cached state (with TTL), so it's not suitable to check {@link Instance#state()} from the
+     * returned instance (but all the other fields are valid as it won't change.)
      * <p>
      * The cache can be flushed using {@link #updateInstanceDescription()}
      */
     public Instance describeInstance() throws SdkException, InterruptedException {
-        if (ec2InstanceDescription == null) {
-            ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        long now = System.currentTimeMillis();
+        if (ec2InstanceDescription != null && (now - instanceCacheTimestamp) < INSTANCE_CACHE_TTL_MS) {
+            return ec2InstanceDescription;
         }
+        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        instanceCacheTimestamp = now;
         if (ec2InstanceDescription == null) {
-            LOGGER.warning("describeInstance returned null for " + getName()
-                    + " (instanceId=" + getInstanceId() + "), node or cloud may be detached");
+            LOGGER.warning("describeInstance returned null for " + getName() + " (instanceId=" + getInstanceId()
+                    + "), node or cloud may be detached");
             throw SdkException.builder()
                     .message("Instance " + getInstanceId() + " not found (node or cloud detached)")
                     .build();
@@ -198,9 +211,10 @@ public class EC2Computer extends SlaveComputer {
      */
     public Instance updateInstanceDescription() throws SdkException, InterruptedException {
         ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
+        instanceCacheTimestamp = System.currentTimeMillis();
         if (ec2InstanceDescription == null) {
-            LOGGER.warning("updateInstanceDescription returned null for " + getName()
-                    + " (instanceId=" + getInstanceId() + "), node or cloud may be detached");
+            LOGGER.warning("updateInstanceDescription returned null for " + getName() + " (instanceId="
+                    + getInstanceId() + "), node or cloud may be detached");
             throw SdkException.builder()
                     .message("Instance " + getInstanceId() + " not found (node or cloud detached)")
                     .build();
@@ -212,31 +226,26 @@ public class EC2Computer extends SlaveComputer {
      * Gets the current state of the instance.
      *
      * <p>
-     * Unlike {@link #describeInstance()}, this method always return the current status by calling EC2.
+     * Uses a short TTL cache to avoid repeated EC2 API calls during SSH verification retries.
      */
     public InstanceState getState() throws SdkException, InterruptedException {
-        ec2InstanceDescription = CloudHelper.getInstanceWithRetry(getInstanceId(), getCloud());
-        if (ec2InstanceDescription == null) {
-            LOGGER.warning("Instance lookup returned null for " + getName()
-                    + " (instanceId=" + getInstanceId() + "), node or cloud may be detached");
-            throw SdkException.builder()
-                    .message("Instance " + getInstanceId() + " not found (node or cloud detached)")
-                    .build();
-        }
-        if (ec2InstanceDescription.state() == null) {
+        // Delegate the fetch to describeInstance() so we reuse upstream's short-TTL cache
+        // (upstream #2000) and its null guard; then keep our degraded-state guards on top.
+        Instance instance = describeInstance();
+        if (instance.state() == null) {
             LOGGER.warning("Instance " + getInstanceId() + " has null state (degraded AWS API response)");
             throw SdkException.builder()
                     .message("Instance " + getInstanceId() + " has null state")
                     .build();
         }
         try {
-            return InstanceState.find(ec2InstanceDescription.state().name().toString());
+            return InstanceState.find(instance.state().name().toString());
         } catch (IllegalArgumentException e) {
             LOGGER.warning("Instance " + getInstanceId() + " has unknown state: "
-                    + ec2InstanceDescription.state().name());
+                    + instance.state().name());
             throw SdkException.builder()
                     .message("Instance " + getInstanceId() + " has unknown state: "
-                            + ec2InstanceDescription.state().name())
+                            + instance.state().name())
                     .cause(e)
                     .build();
         }

@@ -4,9 +4,35 @@ All Percona patches on top of upstream [jenkinsci/ec2-plugin](https://github.com
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 5.24.percona.4 | 2026-05-31 | Sync to upstream: Ludicrous Mode (#2000), shared-SshClient thread-leak fix (#2008), provisioning fallback (#2005/#2010), cachedSlaveTemplates NPE (#2003). CRW timer-death guard relocated to upstream's async retention path; EC2Computer guards merged with the new 30s instance cache; IRSA carried forward unchanged |
 | 5.24.percona.3 | 2026-05-31 | EKS IRSA: `WebIdentityTokenFileCredentialsProvider` + STS dependency + guarded `resolveCredentials`, on top of the full CRW fix set |
 | 5.24.percona.2 | 2026-03-22 | Comprehensive CRW timer-death protection (fixes 1-6), logging, startup banner |
 | 5.24.percona.1 | 2026-03-22 | Null guard in `getState()` (fix 0) |
+
+### v5.24.percona.4 (2026-05-31)
+
+Forward-port of upstream `jenkinsci/ec2-plugin` onto the Percona fork. Our content base was upstream commit `9c48b882` (the commit immediately before tag `2048.ve419b_c6563b_c`); this pulls in the five upstream commits landed since, layered on top of the v5.24.percona.3 patch set. The fork shares no git ancestry with upstream (it was imported as a squashed tree), so this was merged by 3-way-applying the `9c48b882..upstream/master` source delta; only `EC2Computer` and `EC2RetentionStrategy` conflicted (the two files our patches and upstream both touched).
+
+#### Added (from upstream)
+
+| Upstream | Change |
+|----------|--------|
+| #2000 `e419bc65` | **Ludicrous Mode: lightweight queuing of work.** Retention `check()` no longer performs EC2 API work while holding the Queue lock; it schedules the heavy work (`getState`, `getUptime`, idle-timeout, reconnect) onto a `HEAVY_WORK_EXECUTOR` and returns immediately. Adds a 30s TTL instance/state cache to `EC2Computer` (`INSTANCE_CACHE_TTL_MS`). |
+| #2003 `127f0f10` | NPE fix for `cachedSlaveTemplates` being null (a regression in the Ludicrous Mode change). |
+| #2008 `200f1236` | Shared `SshClient` via a new `SSHClientManager` to stop the per-launch `sshd-SshClient` thread leak; all four SSH launchers and `SSHClientHelper` refactored. |
+| #2005 / #2010 `05176793` | Provisioning falls back to the next template when the first is exhausted instead of failing the request. |
+
+Upstream #2006 (`172a79e1`, a ci.jenkins.io build-badge URL change) was skipped as not applicable to the fork.
+
+#### Changed (our patches, adapted to the new code)
+
+- **CRW timer-death guard relocated for Ludicrous Mode.** The v5.24.percona.2 safety net lived in `EC2RetentionStrategy.check()` because the heavy EC2 work ran there, synchronously, on the `ComputerRetentionWork` timer thread. Ludicrous Mode moved that work into `runHeavyCheck()` on `HEAVY_WORK_EXECUTOR`, so the `catch (RuntimeException)` guard moved there too, since a misbehaving computer (NPE, etc.) must not crash the executor worker or stop retention cleanup for the other computers it serves. A lighter guard remains on `check()` to protect the timer thread from a scheduling-time throw (e.g. `RejectedExecutionException`).
+- **`EC2Computer` null / degraded-state guards merged with the new TTL cache.** `describeInstance()` and `updateInstanceDescription()` keep upstream's cache-timestamp bookkeeping and still throw `SdkException` on a null lookup. `getState()` now delegates to the cached `describeInstance()` (upstream's design) and keeps our null-state and unknown-state (`IllegalArgumentException`) guards on top.
+- **IRSA + guarded `resolveCredentials` carried forward unchanged**, merging cleanly with upstream's `EC2Cloud` provisioning rewrite (no line-level overlap).
+
+#### Why
+
+The fork was five commits behind upstream and missing a real `sshd-SshClient` thread-leak fix (#2008) and provisioning robustness (#2005). More importantly, Ludicrous Mode restructured the exact retention path this fork exists to protect: had the guard not been relocated, the v5.24.percona.2 CRW timer-death protection would have silently stopped covering the code that actually makes the EC2 API calls, and the failure mode (a single NPE stalling idle-worker cleanup fleet-wide) would have been reintroduced under a green build.
 
 ### v5.24.percona.3 (2026-05-31)
 
