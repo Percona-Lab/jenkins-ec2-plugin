@@ -1,6 +1,6 @@
 # ec2-plugin (Percona fork)
 
-Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) with `ComputerRetentionWork` timer-death prevention and EKS IRSA support. Current version: **5.24.percona.3**.
+Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) with `ComputerRetentionWork` timer-death prevention and EKS IRSA support, synced to upstream through Ludicrous Mode (#2000). Current version: **5.24.percona.4**.
 
 ## Percona patches
 

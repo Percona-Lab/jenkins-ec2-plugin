@@ -89,9 +89,8 @@ public class PluginImpl extends Plugin implements Describable<PluginImpl> {
         var wrapper = j.getPluginManager().getPlugin("ec2");
         if (wrapper != null) {
             LOGGER.info("EC2 plugin version " + wrapper.getVersion() + " initialized"
-                    + " (clouds: " + j.clouds.stream()
-                        .filter(c -> c instanceof EC2Cloud)
-                        .count() + ")");
+                    + " (clouds: "
+                    + j.clouds.stream().filter(c -> c instanceof EC2Cloud).count() + ")");
         }
 
         MinimumInstanceChecker.checkForMinimumInstances();

@@ -4,7 +4,7 @@
 # Releases are tag-driven: push a v*.percona.* tag and .github/workflows/release.yml
 # builds the .hpi and publishes it to a GitHub Release.
 
-version := "5.24.percona.3"
+version := "5.24.percona.4"
 image := "maven:3.9-eclipse-temurin-17"
 container := "ec2-build"
 m2_volume := "ec2-m2-cache"
