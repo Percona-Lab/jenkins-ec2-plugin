@@ -1,12 +1,57 @@
 ## Changelog
 
-### Percona fork
+All Percona patches on top of upstream [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) v5.24 are documented here.
 
-| Version | Date | Changes |
+| Version | Date | Summary |
 |---------|------|---------|
-| 5.24.percona.3 | 2026-05-31 | Combined NPE/CRW (Fixes 1-6) + EKS IRSA: WebIdentityTokenFileCredentialsProvider + STS dependency, guarded resolveCredentials (AWS SDK v2) |
-| 5.24.percona.2 | 2026-03-22 | Fixes 1-6: comprehensive CRW protection, logging, startup banner |
-| 5.24.percona.1 | 2026-03-22 | Fix 0: null guard in getState/describeInstance/updateInstanceDescription |
+| 5.24.percona.3 | 2026-05-31 | EKS IRSA: `WebIdentityTokenFileCredentialsProvider` + STS dependency + guarded `resolveCredentials`, on top of the full CRW fix set |
+| 5.24.percona.2 | 2026-03-22 | Comprehensive CRW timer-death protection (fixes 1-6), logging, startup banner |
+| 5.24.percona.1 | 2026-03-22 | Null guard in `getState()` (fix 0) |
+
+### v5.24.percona.3 (2026-05-31)
+
+EKS IRSA (IAM Roles for Service Accounts) support, on top of the v5.24.percona.2 CRW fix set.
+
+#### Added
+
+- Explicit `WebIdentityTokenFileCredentialsProvider` so the plugin authenticates to AWS via the IRSA web-identity token projected into the pod (`AWS_WEB_IDENTITY_TOKEN_FILE` / `AWS_ROLE_ARN`) instead of falling back to the node instance profile.
+- AWS SDK v2 `sts` dependency (required by the web-identity provider; not pulled in transitively by the base plugin).
+- Guard in `resolveCredentials` so an EKS-hosted master with no static EC2 credentials configured resolves the IRSA chain cleanly rather than throwing.
+
+#### Why
+
+- Needed for the EKS-fronted Jenkins masters (percona-ci-platform): pods carry an IRSA role, not an instance profile, and the upstream credential resolution path did not select the web-identity provider.
+
+### v5.24.percona.2 (2026-03-22)
+
+Comprehensive `ComputerRetentionWork` (CRW) timer-death protection.
+
+#### The problem
+
+A single `NullPointerException` in `EC2Computer.getState()` kills the Jenkins `ComputerRetentionWork` periodic timer permanently. Once dead, no idle worker cleanup fires for ANY cloud (EC2 or Hetzner) until JVM restart. On `pxc.cd.percona.com` this left 24 Hetzner rogue workers running for 47 hours.
+
+Root cause: `CloudHelper.getInstanceWithRetry()` returns null when the EC2 instance is terminated or the Jenkins node is detached. The return value was dereferenced without a null check.
+
+#### Fixed
+
+| Fix | File | Description |
+|-----|------|-------------|
+| 1 | EC2Computer.java | Null guard in `getSlaveTemplate()` -- `getCloud()` can return null |
+| 2 | EC2Computer.java | Null guard in `getUptime()`/`getLaunchTime()` -- null `launchTime` |
+| 3 | EC2Computer.java | `IllegalArgumentException` guard in `getState()` -- unknown AWS state |
+| 4 | EC2Computer.java | Null guard for `instance.state()` -- degraded AWS API response |
+| 5 | EC2RetentionStrategy.java | `RuntimeException` safety net in `check()` -- belt-and-suspenders |
+| 6 | SshHostKeyVerificationStrategy.java | Catch `SdkException` alongside `InterruptedException` |
+
+All fixes convert uncaught `RuntimeException`s into caught `SdkException`s or log-and-continue patterns. Fix 5 is the safety net: even if a new bug appears in the future, it cannot kill the CRW timer. A startup banner logs the active patch version.
+
+### v5.24.percona.1 (2026-03-22)
+
+Initial CRW timer-death fix.
+
+#### Fixed
+
+- Fix 0: null guard in `EC2Computer.getState()` (also `describeInstance` / `updateInstanceDescription`) so a terminated-instance / detached-node lookup returning null is converted to a caught `SdkException` instead of an NPE that kills the CRW timer.
 
 ### DEPRECATED (upstream)
 The changelog for upstream versions is at https://github.com/jenkinsci/ec2-plugin/releases

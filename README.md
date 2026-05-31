@@ -1,83 +1,38 @@
 # ec2-plugin (Percona fork)
 
-Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin)
-with fixes to prevent the `ComputerRetentionWork` timer from dying permanently.
+Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) with `ComputerRetentionWork` timer-death prevention and EKS IRSA support. Current version: **5.24.percona.3**.
 
-## Percona patches (branch `fix/eks-irsa-support`)
+## Percona patches
 
-Based on upstream v5.24. Current version: **5.24.percona.3**.
+See [CHANGELOG.md](CHANGELOG.md) for the complete list of patches and per-version release notes.
 
-### The problem
+## Releasing a new version
 
-A single `NullPointerException` in `EC2Computer.getState()` kills the Jenkins
-`ComputerRetentionWork` periodic timer permanently. Once dead, no idle worker
-cleanup fires for ANY cloud (EC2 or Hetzner) until JVM restart. On
-`pxc.cd.percona.com` this left 24 Hetzner rogue workers running for 47 hours.
-
-Root cause: `CloudHelper.getInstanceWithRetry()` returns null when the EC2
-instance is terminated or the Jenkins node is detached. The return value was
-dereferenced without a null check.
-
-### Fixes applied
-
-| Fix | File | Description |
-|-----|------|-------------|
-| 0 | EC2Computer.java | Null guard in `getState()` -- NPE to SdkException |
-| 1 | EC2Computer.java | Null guard in `getSlaveTemplate()` -- `getCloud()` can return null |
-| 2 | EC2Computer.java | Null guard in `getUptime()`/`getLaunchTime()` -- null `launchTime` |
-| 3 | EC2Computer.java | `IllegalArgumentException` guard in `getState()` -- unknown AWS state |
-| 4 | EC2Computer.java | Null guard for `instance.state()` -- degraded AWS API response |
-| 5 | EC2RetentionStrategy.java | `RuntimeException` safety net in `check()` -- belt-and-suspenders |
-| 6 | SshHostKeyVerificationStrategy.java | Catch `SdkException` alongside `InterruptedException` |
-
-All fixes convert uncaught `RuntimeException`s into caught `SdkException`s or
-log-and-continue patterns. Fix 5 is the safety net: even if a new bug appears
-in the future, it cannot kill the CRW timer.
-
-### Version history
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 5.24.percona.1 | 2026-03-22 | Fix 0: null guard in getState/describeInstance/updateInstanceDescription |
-| 5.24.percona.2 | 2026-03-22 | Fixes 1-6: comprehensive CRW protection, logging, startup banner |
-| 5.24.percona.3 | 2026-05-31 | Combined NPE/CRW (Fixes 1-6) + EKS IRSA: WebIdentityTokenFileCredentialsProvider + STS dependency, guarded resolveCredentials (AWS SDK v2) |
-
-### Build and deploy
-
-Requires Docker (Maven 3.9 + JDK 17 image). Uses `just` task runner.
+Releases are tag-driven, not merge-driven. Pushing a tag matching `v*.percona.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which derives the Maven `changelist` from the tag (`v5.24.percona.4` -> `5.24.percona.4`), builds the HPI, and publishes a GitHub Release with the `.hpi` and its `.sha256`. Merging a PR to `main` runs CI (build + test) only and never publishes; a docs-only change needs no new tag.
 
 ```bash
-# Build HPI (skips tests)
-just build
-
-# Run tests
-just test
-
-# Deploy to a single instance
-just deploy pxc
-
-# Deploy to all 10 instances
-just deploy-all
-
-# Check versions across fleet
-just check
-
-# Create GitHub release
-just release
+# 1. Land the code + a CHANGELOG.md entry on main
+# 2. Bump the justfile `version` pin to match the new tag
+# 3. Tag and push (CI builds + publishes the HPI)
+git tag v5.24.percona.4
+git push origin v5.24.percona.4
 ```
 
-### Verification
+## Build
+
+Requires Docker (the build runs in a `maven:3.9-eclipse-temurin-17` container). Uses the [`just`](https://github.com/casey/just) task runner; Maven dependencies are cached in a Docker volume.
 
 ```bash
-# CRW timer health across all instances
-jenkins hetzner crw-health
+just build         # Build the .hpi (skips tests)
+just test          # Build + run tests
+just clean         # Remove built .hpi artifacts
+just clean-cache   # Drop the Maven cache volume (forces a full re-download)
+```
 
-# EC2 workers with status classification
-jenkins ec2 --all get
+Without `just`, build directly with Maven (CI-friendly versioning):
 
-# State machine simulation (demonstrates all bugs and fixes)
-javac CrwNpeDemo.java && java CrwNpeDemo
-javac CrwStateMachine.java && java CrwStateMachine
+```bash
+mvn -B -DskipTests package -Dchangelist=5.24.percona.3
 ```
 
 ---
