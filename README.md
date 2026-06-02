@@ -32,7 +32,7 @@ just clean-cache   # Drop the Maven cache volume (forces a full re-download)
 Without `just`, build directly with Maven (CI-friendly versioning):
 
 ```bash
-mvn -B -DskipTests package -Dchangelist=5.24.percona.3
+mvn -B -DskipTests package -Dchangelist=5.24.percona.4
 ```
 
 ---
