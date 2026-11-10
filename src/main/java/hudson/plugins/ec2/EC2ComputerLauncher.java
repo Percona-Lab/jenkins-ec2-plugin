@@ -52,6 +52,7 @@ public abstract class EC2ComputerLauncher extends ComputerLauncher {
     public void launch(SlaveComputer slaveComputer, TaskListener listener) {
         try {
             EC2Computer computer = (EC2Computer) slaveComputer;
+            InstanceMetadataOptionsEnforcer.enforceIfEnabled(computer, listener);
             launchScript(computer, listener);
         } catch (SdkException | IOException e) {
             e.printStackTrace(listener.error(e.getMessage()));
