@@ -6,6 +6,8 @@ Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) 
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete list of patches and per-version release notes.
 
+Opt-in switch `-Dhudson.plugins.ec2.enforceMetadataOptions=true` makes spot agents match the template instance metadata options (hop limit, tokens, endpoint) before they launch. See the Unreleased entry in the CHANGELOG.
+
 ## Releasing a new version
 
 Releases are tag-driven, not merge-driven. Pushing a tag matching `v*.percona.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which derives the Maven `changelist` from the tag (`v5.24.percona.4` -> `5.24.percona.4`), builds the HPI, and publishes a GitHub Release with the `.hpi` and its `.sha256`. Merging a PR to `main` runs CI (build + test) only and never publishes; a docs-only change needs no new tag.

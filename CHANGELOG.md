@@ -9,6 +9,10 @@ All Percona patches on top of upstream [jenkinsci/ec2-plugin](https://github.com
 | 5.24.percona.2 | 2026-03-22 | Comprehensive CRW timer-death protection (fixes 1-6), logging, startup banner |
 | 5.24.percona.1 | 2026-03-22 | Null guard in `getState()` (fix 0) |
 
+### Unreleased
+
+- Opt-in system property `hudson.plugins.ec2.enforceMetadataOptions=true` (default off). Before a spot agent launches, the launcher compares the instance metadata options with the template and calls `ModifyInstanceMetadataOptions` on a mismatch. The launch fails and the node is terminated if the options are not applied within `hudson.plugins.ec2.enforceMetadataOptions.timeoutMs` (default 60000). The master role needs `ec2:ModifyInstanceMetadataOptions`.
+
 ### v5.24.percona.4 (2026-05-31)
 
 Forward-port of upstream `jenkinsci/ec2-plugin` onto the Percona fork. Our content base was upstream commit `9c48b882` (the commit immediately before tag `2048.ve419b_c6563b_c`); this pulls in the five upstream commits landed since, layered on top of the v5.24.percona.3 patch set. The fork shares no git ancestry with upstream (it was imported as a squashed tree), so this was merged by 3-way-applying the `9c48b882..upstream/master` source delta; only `EC2Computer` and `EC2RetentionStrategy` conflicted (the two files our patches and upstream both touched).
