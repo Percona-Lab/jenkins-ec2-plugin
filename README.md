@@ -1,6 +1,6 @@
 # ec2-plugin (Percona fork)
 
-Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) with `ComputerRetentionWork` timer-death prevention and EKS IRSA support, synced to upstream through Ludicrous Mode (#2000). Current version: **5.24.percona.4**.
+Patched fork of [jenkinsci/ec2-plugin](https://github.com/jenkinsci/ec2-plugin) with `ComputerRetentionWork` timer-death prevention and EKS IRSA support, synced to upstream through Ludicrous Mode (#2000). Current version: **5.24.percona.5**.
 
 ## Percona patches
 
@@ -10,14 +10,14 @@ Opt-in switch `-Dhudson.plugins.ec2.enforceMetadataOptions=true` makes spot agen
 
 ## Releasing a new version
 
-Releases are tag-driven, not merge-driven. Pushing a tag matching `v*.percona.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which derives the Maven `changelist` from the tag (`v5.24.percona.4` -> `5.24.percona.4`), builds the HPI, and publishes a GitHub Release with the `.hpi` and its `.sha256`. Merging a PR to `main` runs CI (build + test) only and never publishes; a docs-only change needs no new tag.
+Releases are tag-driven, not merge-driven. Pushing a tag matching `v*.percona.*` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which derives the Maven `changelist` from the tag (`v5.24.percona.5` -> `5.24.percona.5`), builds the HPI, and publishes a GitHub Release with the `.hpi` and its `.sha256`. Merging a PR to `main` runs CI (build + test) only and never publishes; a docs-only change needs no new tag.
 
 ```bash
 # 1. Land the code + a CHANGELOG.md entry on main
 # 2. Bump the justfile `version` pin to match the new tag
 # 3. Tag and push (CI builds + publishes the HPI)
-git tag v5.24.percona.4
-git push origin v5.24.percona.4
+git tag v5.24.percona.5
+git push origin v5.24.percona.5
 ```
 
 ## Build
