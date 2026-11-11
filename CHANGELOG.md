@@ -4,12 +4,13 @@ All Percona patches on top of upstream [jenkinsci/ec2-plugin](https://github.com
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 5.24.percona.5 | 2026-11-10 | Opt-in switch `hudson.plugins.ec2.enforceMetadataOptions`: spot agents get the instance metadata options of their template before they launch |
 | 5.24.percona.4 | 2026-05-31 | Sync to upstream: Ludicrous Mode (#2000), shared-SshClient thread-leak fix (#2008), provisioning fallback (#2005/#2010), cachedSlaveTemplates NPE (#2003). CRW timer-death guard relocated to upstream's async retention path; EC2Computer guards merged with the new 30s instance cache; IRSA carried forward unchanged |
 | 5.24.percona.3 | 2026-05-31 | EKS IRSA: `WebIdentityTokenFileCredentialsProvider` + STS dependency + guarded `resolveCredentials`, on top of the full CRW fix set |
 | 5.24.percona.2 | 2026-03-22 | Comprehensive CRW timer-death protection (fixes 1-6), logging, startup banner |
 | 5.24.percona.1 | 2026-03-22 | Null guard in `getState()` (fix 0) |
 
-### Unreleased
+### v5.24.percona.5 (2026-11-10)
 
 - Opt-in system property `hudson.plugins.ec2.enforceMetadataOptions=true` (default off). Before a spot agent launches, the launcher compares the instance metadata options with the template and calls `ModifyInstanceMetadataOptions` on a mismatch. The launch fails and the node is terminated if the options are not applied within `hudson.plugins.ec2.enforceMetadataOptions.timeoutMs` (default 60000). The master role needs `ec2:ModifyInstanceMetadataOptions`.
 
